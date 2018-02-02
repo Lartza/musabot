@@ -99,7 +99,7 @@ class Musabot:
         else:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-i', file, '-ac', '1', '-f', 's16le',
                        '-ar', '48000', '-']
-        self.thread = sp.Popen(command, stdout=sp.PIPE, bufsize=480)
+        self.thread = sp.run(command, check=True, stdout=sp.PIPE, bufsize=480)
         self.playing = True
 
     def loop(self):
@@ -136,7 +136,7 @@ class Musabot:
         channel.send_text_message(msg)
 
     def playnext(self):
-        self.cmd_stop()
+        self.stop()
         if self.queue:
             self.current_track = self.queue.popleft()
             self.launch_play_file(self.current_track)
@@ -314,7 +314,7 @@ class Musabot:
             if self.playing:
                 video = Video.get(Video.id == self.current_track['id'])
         if video is not None:
-            self.cmd_stop()
+            self.stop()
             os.remove(video.filename)
             video.delete_instance()
             db.close()
