@@ -344,7 +344,30 @@ class Musabot:
         else:
             self.mumble.users[text.actor].send_message(self.mumble.users[text.actor]['hash'])
 
-    # TODO: mp3, ignore, samechannel, noprivate
+    def cmd_ignore(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) > 0 and parameter:
+            for session in self.mumble.users:
+                if self.mumble.users[session]['name'] == parameter:
+                    user = self.mumble.users[session]
+                    ignored = config.as_list('ignored')
+                    if is_admin(user) != 2:
+                        ignored.append(user['hash'])
+                    config['ignored'] = ignored
+                    config.write()
+                    break
+
+    def cmd_unignore(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) > 0 and parameter:
+            for session in self.mumble.users:
+                if self.mumble.users[session]['name'] == parameter:
+                    user = self.mumble.users[session]
+                    ignored = config.as_list('ignored')
+                    ignored.remove(user['hash'])
+                    config['ignored'] = ignored
+                    config.write()
+                    break
+
+    # TODO: mp3, samechannel, noprivate
 
 
 if __name__ == '__main__':
