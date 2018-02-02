@@ -25,6 +25,8 @@ get_path = partial(os.path.join, here)
 
 config = ConfigObj('config.ini')
 filedir = config['filedir']
+if not os.path.exists(filedir):
+    os.makedirs(filedir)
 
 db = SqliteExtDatabase('musabot.db')
 
