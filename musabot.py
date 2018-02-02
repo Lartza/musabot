@@ -99,7 +99,7 @@ class Musabot:
         else:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-i', file, '-ac', '1', '-f', 's16le',
                        '-ar', '48000', '-']
-        self.thread = sp.run(command, check=True, stdout=sp.PIPE, bufsize=480)
+        self.thread = sp.Popen(command, stdout=sp.PIPE, bufsize=480)
         self.playing = True
 
     def loop(self):
