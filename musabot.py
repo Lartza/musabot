@@ -344,13 +344,36 @@ class Musabot:
         else:
             self.mumble.users[text.actor].send_message(self.mumble.users[text.actor]['hash'])
 
+    def cmd_admin(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) == 2 and parameter:
+            for session in self.mumble.users:
+                if self.mumble.users[session]['name'] == parameter:
+                    user = self.mumble.users[session]
+                    admins = config.as_list('admins')
+                    if is_admin(user) != 2 and user['hash'] not in admins:
+                        admins.append(user['hash'])
+                    config['admins'] = admins
+                    config.write()
+                    break
+
+    def cmd_unadmin(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) ==2 and parameter:
+            for session in self.mumble.users:
+                if self.mumble.users[session]['name'] == parameter:
+                    user = self.mumble.users[session]
+                    admins = config.as_list('admins')
+                    admins.remove(user['hash'])
+                    config['admins'] = admins
+                    config.write()
+                    break
+
     def cmd_ignore(self, text, parameter):
         if is_admin(self.mumble.users[text.actor]) > 0 and parameter:
             for session in self.mumble.users:
                 if self.mumble.users[session]['name'] == parameter:
                     user = self.mumble.users[session]
                     ignored = config.as_list('ignored')
-                    if is_admin(user) != 2:
+                    if is_admin(user) != 2 and user['hash'] not in ignored:
                         ignored.append(user['hash'])
                     config['ignored'] = ignored
                     config.write()
