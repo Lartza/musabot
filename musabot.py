@@ -260,7 +260,7 @@ class Musabot:
             self.volume = float(float(parameter) / 100)
             config['volume'] = self.volume
             config.write()
-            self.send_msg_channel('Volume: {}% set by {}'.format(
+            self.send_msg_channel('Vol: {}% by {}'.format(
                 int(self.volume * 100), self.mumble.users[text.actor]['name']))
         else:
             self.mumble.users[text.actor].send_message(
