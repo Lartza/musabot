@@ -150,6 +150,15 @@ class Musabot:
             self.mumble.users[text.actor].send_message('You are on my ignore list')
             return
 
+        if is_admin(self.mumble.users[text.actor]) == 0:
+            if config.as_bool('same_channel') and self.mumble.users.myself['channel_id'] != self.mumble.users[text.actor]['channel_id']:
+                self.mumble.users[text.actor].send_message('You need to be on the same channel!')
+                return
+            elif config.as_bool('ignore_private') and text.session:
+                if text.session[0] == self.mumble.users.myself['session']:
+                    self.mumble.users[text.actor].send_message("It's rude to whisper in a group")
+                    return
+
         try:
             command, parameter = message[1:].split(' ', 1)
         except ValueError:
@@ -157,6 +166,8 @@ class Musabot:
             parameter = None
 
         if command in ['yt', 'y']:
+            self.cmd_youtube(text, parameter)
+        elif command in ['vol', 'v']:
             self.cmd_youtube(text, parameter)
         elif hasattr(self, 'cmd_' + command):
             getattr(self, 'cmd_' + command)(text, parameter)
@@ -390,7 +401,18 @@ class Musabot:
                     config.write()
                     break
 
-    # TODO: mp3, samechannel, noprivate
+    def cmd_set(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) > 0 and parameter:
+            parameter = parameter.split(' ', 1)
+            value = bool(parameter[1])
+            if parameter[0] == 'ignore_private':
+                config['ignore_private'] = value
+            elif parameter[1] == 'same_channel':
+                config['same_channel'] = value
+            config.write()
+
+
+    # TODO: mp3
 
 
 if __name__ == '__main__':
