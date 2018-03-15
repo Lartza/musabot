@@ -146,6 +146,7 @@ class Musabot:
             self.playing = False
 
     def handle_command(self, text, message):
+        # TODO timeout
         if self.mumble.users[text.actor]['hash'] in config.as_list('ignored'):
             self.mumble.users[text.actor].send_message('You are on my ignore list')
             return
@@ -168,7 +169,7 @@ class Musabot:
         if command in ['yt', 'y']:
             self.cmd_youtube(text, parameter)
         elif command in ['vol', 'v']:
-            self.cmd_youtube(text, parameter)
+            self.cmd_volume(text, parameter)
         elif hasattr(self, 'cmd_' + command):
             getattr(self, 'cmd_' + command)(text, parameter)
         else:
@@ -188,12 +189,14 @@ class Musabot:
             self.play_or_queue(video)
         db.close()
 
-    def cmd_random(self, _, parameter):
+    def cmd_random(self, text, parameter):
         if parameter is not None:
             amount = int(parameter)
         else:
             amount = 1
         if 1 <= amount <= 10:
+            self.mumble.users[text.actor].send_message(
+                'Adding {} videos to the queue'.format(amount))
             self.random(amount)
 
     def cmd_join(self, text, _):
@@ -232,7 +235,19 @@ class Musabot:
                     db.close()
                 except DoesNotExist:
                     db.close()
-                    video = self.download_youtube(text, url, urlhash)
+                    try:
+                        videoid = utils.get_yt_video_id(url)
+                    except ValueError:
+                        self.mumble.users[text.actor].send_message(
+                            'Invalid YouTube link')
+                        self.processing.remove(urlhash)
+                        return
+                    if videoid in config.as_list('blacklist'):
+                        self.mumble.users[text.actor].send_message(
+                            'Video blacklisted')
+                        self.processing.remove(urlhash)
+                        return
+                    video = self.download_youtube(text, url, urlhash, videoid)
                     if video is None:
                         return
                 try:
@@ -277,13 +292,7 @@ class Musabot:
             self.mumble.users[text.actor].send_message(
                 'Volume: {}%'.format(int(self.volume * 100)))
 
-    def download_youtube(self, text, url, urlhash):
-        try:
-            videoid = utils.get_yt_video_id(url)
-        except ValueError:
-            self.mumble.users[text.actor].send_message('Invalid YouTube link')
-            self.processing.remove(urlhash)
-            return None
+    def download_youtube(self, text, url, urlhash, videoid):
         request = self.youtube.videos().list(part='snippet, contentDetails', id=videoid)
         response = request.execute()
         if parse_duration(response['items'][0]['contentDetails']['duration']) > timedelta(hours=1):
@@ -313,26 +322,53 @@ class Musabot:
             return None
         return video
 
-    def delete(self, text, parameter):
-        video = None
-        if parameter is not None:
-            url, urlhash = utils.parse_parameter(parameter)
-            if urlhash is None:
-                return
-            db.connect()
-            video = Video.get(Video.id == urlhash)
-        else:
-            if self.playing:
-                video = Video.get(Video.id == self.current_track['id'])
-        if video is not None:
-            self.stop()
-            os.remove(video.filename)
-            video.delete_instance()
-            db.close()
-            self.mumble.users[text.actor].send_message('Deleted succesfully')
-            self.playnext()
-        else:
-            self.mumble.users[text.actor].send_message('Failed to delete')
+    def cmd_delete(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) > 0:
+            video = None
+            if parameter is not None:
+                url, urlhash = utils.parse_parameter(parameter)
+                if urlhash is None:
+                    return
+                db.connect()
+                video = Video.get(Video.id == urlhash)
+            else:
+                if self.playing:
+                    video = Video.get(Video.id == self.current_track['id'])
+            if video is not None:
+                self.stop()
+                os.remove(video.filename)
+                video.delete_instance()
+                db.close()
+                self.mumble.users[text.actor].send_message('Deleted succesfully')
+                self.playnext()
+            else:
+                self.mumble.users[text.actor].send_message('Failed to delete')
+
+    def cmd_blacklist(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) > 0:
+            video = None
+            if parameter is not None:
+                url, urlhash = utils.parse_parameter(parameter)
+                if urlhash is None:
+                    return
+                db.connect()
+                video = Video.get(Video.id == urlhash)
+            else:
+                if self.playing:
+                    video = Video.get(Video.id == self.current_track['id'])
+            if video is not None:
+                self.stop()
+                os.remove(video.filename)
+                video.delete_instance()
+                db.close()
+                blacklist = config.as_list('blacklist')
+                blacklist.append(utils.get_yt_video_id(video['url']))
+                config['blacklist'] = blacklist
+                config.write()
+                self.mumble.users[text.actor].send_message('Blacklisted succesfully')
+                self.playnext()
+            else:
+                self.mumble.users[text.actor].send_message('Failed to blacklist')
 
     def cmd_togglerandom(self, text, _):
         togglerandom = config.as_bool('random')
@@ -388,6 +424,9 @@ class Musabot:
                         ignored.append(user['hash'])
                     config['ignored'] = ignored
                     config.write()
+                    self.mumble.users[text.actor].send_message(
+                        "{}({}) added to ignore list".format(user['name'],
+                                                             user['session']))
                     break
 
     def cmd_unignore(self, text, parameter):
@@ -399,6 +438,9 @@ class Musabot:
                     ignored.remove(user['hash'])
                     config['ignored'] = ignored
                     config.write()
+                    self.mumble.users[text.actor].send_message(
+                        "{}({}) removed from ignore list".format(user['name'],
+                                                                 user['session']))
                     break
 
     def cmd_set(self, text, parameter):
@@ -410,7 +452,7 @@ class Musabot:
             elif parameter[1] == 'same_channel':
                 config['same_channel'] = value
             config.write()
-
+            self.mumble.users[text.actor].send_message("Config value set")
 
     # TODO: mp3
 

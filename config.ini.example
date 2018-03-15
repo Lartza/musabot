@@ -16,4 +16,6 @@ owner =
 admins = ,
 ignored = ,
 
+blacklist = ,
+
 youtube_apikey =
