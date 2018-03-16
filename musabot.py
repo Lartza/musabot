@@ -39,7 +39,7 @@ class BaseModel(Model):
 
 
 class Video(BaseModel):
-    id = TextField(unique=True)
+    id = TextField(primary_key=True)
     url = TextField()
     title = TextField()
 
@@ -385,8 +385,7 @@ class Musabot:
                     self.playnext()
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
-                q = Video.delete().where(Video.id == video.id)
-                q.execute()
+                video.delete_instance()
                 db.close()
                 self.mumble.users[text.actor].send_message('Deleted succesfully')
             else:
@@ -407,8 +406,7 @@ class Musabot:
                     self.playnext()
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
-                q = Video.delete().where(Video.id == video.id)
-                q.execute()
+                video.delete_instance()
                 db.close()
                 blacklist = config.as_list('blacklist')
                 blacklist.append(video['id'])
