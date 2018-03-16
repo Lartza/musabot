@@ -409,7 +409,7 @@ class Musabot:
                 video.delete_instance()
                 db.close()
                 blacklist = config.as_list('blacklist')
-                blacklist.append(video['id'])
+                blacklist.append(video.id)
                 config['blacklist'] = blacklist
                 config.write()
                 self.mumble.users[text.actor].send_message('Blacklisted succesfully')
