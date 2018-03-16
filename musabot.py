@@ -385,7 +385,8 @@ class Musabot:
                     self.playnext()
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
-                video.delete_instance()
+                q = Video.delete().where(Video.id == video.id)
+                q.execute()
                 db.close()
                 self.mumble.users[text.actor].send_message('Deleted succesfully')
             else:
@@ -406,7 +407,8 @@ class Musabot:
                     self.playnext()
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
-                video.delete_instance()
+                q = Video.delete().where(Video.id == video.id)
+                q.execute()
                 db.close()
                 blacklist = config.as_list('blacklist')
                 blacklist.append(video['id'])
