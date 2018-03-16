@@ -4,3 +4,4 @@ beautifulsoup4==4.6.0
 google-api-python-client==1.6.5
 isodate==0.6.0
 youtube-dl==2018.1.27
+requests==2.18.4

@@ -16,6 +16,8 @@ from playhouse.sqlite_ext import SqliteExtDatabase
 from googleapiclient.discovery import build
 from isodate import parse_duration
 
+import requests
+
 import pymumble.pymumble_py3 as pymumble
 
 from musabot import utils
@@ -235,16 +237,16 @@ class Musabot:
                     db.close()
                 except DoesNotExist:
                     db.close()
+                    if urlhash in config.as_list('blacklist'):
+                        self.mumble.users[text.actor].send_message(
+                            'Video blacklisted')
+                        self.processing.remove(urlhash)
+                        return
                     try:
                         videoid = utils.get_yt_video_id(url)
                     except ValueError:
                         self.mumble.users[text.actor].send_message(
                             'Invalid YouTube link')
-                        self.processing.remove(urlhash)
-                        return
-                    if videoid in config.as_list('blacklist'):
-                        self.mumble.users[text.actor].send_message(
-                            'Video blacklisted')
                         self.processing.remove(urlhash)
                         return
                     video = self.download_youtube(text, url, urlhash, videoid)
@@ -272,6 +274,33 @@ class Musabot:
                 self.mumble.users[text.actor].send_message('No video given')
         else:
             self.mumble.users[text.actor].send_message('YouTube API Key not set')
+
+    def cmd_mp3(self, text, parameter):
+        if parameter is not None:
+            url, urlhash = utils.parse_parameter(parameter)
+            if urlhash in self.processing:
+                self.mumble.users[text.actor].send_message('Already processing this video!')
+                return
+            self.processing.append(urlhash)
+            try:
+                db.connect()
+                video_entry = Video.get(Video.id == urlhash)
+                video = {'id': video_entry.id, 'url': video_entry.url, 'title': video_entry.title}
+                db.close()
+            except DoesNotExist:
+                db.close()
+                if urlhash in config.as_list('blacklist'):
+                    self.mumble.users[text.actor].send_message(
+                        'Video blacklisted')
+                    self.processing.remove(urlhash)
+                    return
+                video = self.download_mp3(text, url, urlhash)
+                if video is None:
+                    return
+            self.processing.remove(video['id'])
+            self.play_or_queue(video)
+        else:
+            self.mumble.users[text.actor].send_message('No video given')
 
     def cmd_queue(self, text, _):
         if self.queue:
@@ -322,6 +351,25 @@ class Musabot:
             return None
         return video
 
+    def download_mp3(self, text, url, urlhash):
+        video = {'id': urlhash, 'url': url, 'title': url.split('/')[-1]}
+        request = requests.get(video['url'], stream=True)
+        with open(video['id'], 'wb') as file:
+            for chunk in request.iter_content(chunk_size=1024):
+                if chunk:
+                    file.write(chunk)
+        db.connect()
+        try:
+            Video.create(id=video['id'], url=video['url'], title=video['title'])
+            db.close()
+        except IntegrityError:
+            db.close()
+            os.remove(os.path.join(filedir, video['id']))
+            self.mumble.users[text.actor].send_message('Failed to download due to database error.')
+            self.processing.remove(video['id'])
+            return None
+        return video
+
     def cmd_delete(self, text, parameter):
         if is_admin(self.mumble.users[text.actor]) > 0:
             video = None
@@ -334,13 +382,12 @@ class Musabot:
             else:
                 if self.playing:
                     video = Video.get(Video.id == self.current_track['id'])
+                    self.playnext()
             if video is not None:
-                self.stop()
                 os.remove(video.filename)
                 video.delete_instance()
                 db.close()
                 self.mumble.users[text.actor].send_message('Deleted succesfully')
-                self.playnext()
             else:
                 self.mumble.users[text.actor].send_message('Failed to delete')
 
@@ -356,17 +403,16 @@ class Musabot:
             else:
                 if self.playing:
                     video = Video.get(Video.id == self.current_track['id'])
+                    self.playnext()
             if video is not None:
-                self.stop()
                 os.remove(video.filename)
                 video.delete_instance()
                 db.close()
                 blacklist = config.as_list('blacklist')
-                blacklist.append(utils.get_yt_video_id(video['url']))
+                blacklist.append(video['id'])
                 config['blacklist'] = blacklist
                 config.write()
                 self.mumble.users[text.actor].send_message('Blacklisted succesfully')
-                self.playnext()
             else:
                 self.mumble.users[text.actor].send_message('Failed to blacklist')
 
