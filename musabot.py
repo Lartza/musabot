@@ -416,6 +416,17 @@ class Musabot:
             else:
                 self.mumble.users[text.actor].send_message('Failed to blacklist')
 
+    def cmd_unblacklist(self, text, parameter):
+        if is_admin(self.mumble.users[text.actor]) > 0 and parameter:
+            url, urlhash = utils.parse_parameter(parameter)
+            blacklist = config.as_list('blacklist')
+            if urlhash in blacklist:
+                blacklist.remove(urlhash)
+                config['blacklist'] = blacklist
+                config.write()
+                self.mumble.users[text.actor].send_message(
+                    "Blacklist removal successful")
+
     def cmd_togglerandom(self, text, _):
         togglerandom = config.as_bool('random')
         if togglerandom:
@@ -499,8 +510,6 @@ class Musabot:
                 config['same_channel'] = value
             config.write()
             self.mumble.users[text.actor].send_message("Config value set")
-
-    # TODO: mp3
 
 
 if __name__ == '__main__':
