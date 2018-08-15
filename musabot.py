@@ -390,6 +390,7 @@ class Musabot:
     def cmd_delete(self, text, parameter):
         if is_admin(self.mumble.users[text.actor]) > 0:
             video = None
+            resume = False
             if parameter is not None:
                 url, urlhash = utils.parse_parameter(parameter)
                 if urlhash is None:
@@ -398,15 +399,28 @@ class Musabot:
                 video = Video.get(Video.id == urlhash)
             else:
                 if self.playing:
+                    resume = True
+                    db.connect()
+                    logging.debug(f"Database connection opened")
+                    logging.debug(f"Selecting currently playing track for deletion")
                     video = Video.get(Video.id == self.current_track['id'])
-                    self.playnext()
+                    self.stop()
+                else:
+                    self.mumble.users[text.actor].send_message('No video defined')
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
+                logging.debug(f"Removed video file {video.id}")
                 video.delete_instance()
+                logging.debug(f"Removed database entry for video")
                 db.close()
+                logging.debug(f"Database connection closed")
                 self.mumble.users[text.actor].send_message('Deleted succesfully')
             else:
+                db.close()
                 self.mumble.users[text.actor].send_message('Failed to delete')
+            if resume:
+                logging.debug("Resuming playback")
+                self.playnext()
 
     def cmd_blacklist(self, text, parameter):
         if is_admin(self.mumble.users[text.actor]) > 0:
