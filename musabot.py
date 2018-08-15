@@ -3,6 +3,7 @@ import time
 import audioop
 import subprocess as sp
 import os
+import logging
 from functools import partial
 from datetime import timedelta
 from urllib.parse import urlparse, parse_qs
@@ -26,8 +27,16 @@ here = os.path.abspath(os.path.dirname(__file__))
 get_path = partial(os.path.join, here)
 
 config = ConfigObj('config.ini')
+
+loglevel = config['loglevel']
+numeric_level = getattr(logging, loglevel.upper(), None)
+if not isinstance(numeric_level, int):
+    raise ValueError('Invalid log level: %s' % loglevel)
+logging.basicConfig(level=numeric_level)
+
 filedir = config['filedir']
 if not os.path.exists(filedir):
+    logging.info("File directory does not exist, creating")
     os.makedirs(filedir)
 
 db = SqliteExtDatabase('musabot.db')
@@ -51,9 +60,12 @@ db.close()
 
 def is_admin(user):
     if user['hash'] == config['owner']:
+        logging.info(f"{user['name']}({user['hash']}) authenticated as owner")
         return 2
     if user['hash'] in config.as_list('admins'):
+        logging.info(f"{user['name']}({user['hash']}) authenticated as admin")
         return 1
+    logging.info(f"Failed to authenticate {user['name']}({user['hash']})")
     return 0
 
 
@@ -73,7 +85,7 @@ class Musabot:
             self.youtube = build('youtube', 'v3',
                                  developerKey=config['youtube_apikey'])
         else:
-            print('YouTube API Key not set')
+            logging.warning('YouTube API Key not set')
             self.youtube = None
 
         self.mumble = pymumble.Mumble(config['host'], config['user'], port=config.as_int('port'),
@@ -140,11 +152,14 @@ class Musabot:
     def playnext(self):
         self.stop()
         if self.queue:
+            logging.debug("Playing track from queue")
             self.current_track = self.queue.popleft()
             self.launch_play_file(self.current_track)
         elif config.as_bool('random'):
+            logging.debug("Playing random track")
             self.random()
         else:
+            logging.debug("Playback stopped")
             self.playing = False
 
     def handle_command(self, text, message):
@@ -179,8 +194,10 @@ class Musabot:
 
     def play_or_queue(self, video):
         if self.playing:
+            logging.debug("Track appended to queue")
             self.queue.append(video)
         else:
+            logging.debug("Playing requested track")
             self.current_track = video
             self.launch_play_file(self.current_track)
 
