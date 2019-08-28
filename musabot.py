@@ -83,7 +83,7 @@ class Musabot:
 
         if config['youtube_apikey']:
             self.youtube = build('youtube', 'v3',
-                                 developerKey=config['youtube_apikey'])
+                                 developerKey=config['youtube_apikey'], cache_discovery=False)
         else:
             logging.warning('YouTube API Key not set')
             self.youtube = None
