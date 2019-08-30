@@ -534,11 +534,10 @@ class Musabot:
             config.write()
             self.send_msg(text.actor, "Config value set")
 
-    def cmd_kill(self, text):
+    def cmd_kill(self, text, parameter):
         if is_admin(self.mumble.users[text.actor]) > 0:
             self.stop()
             self.exit = True
-            sys.exit(0)
 
 
 if __name__ == '__main__':
