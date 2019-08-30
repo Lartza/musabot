@@ -110,10 +110,10 @@ class Musabot:
         file = os.path.join(filedir, video['id'])
         if 'starttime' in video:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-ss', str(video['starttime']), '-i', file,
-                       '-ac', '1', '-f', 's16le', '-ar', '48000', '-']
+                       '-ac', '1', '-f', 's16le', '-ar', '48000', '-af', 'loudnorm', '-']
         else:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-i', file, '-ac', '1', '-f', 's16le',
-                       '-ar', '48000', '-']
+                       '-ar', '48000', '-af', 'loudnorm', '-']
         self.thread = sp.Popen(command, stdout=sp.PIPE, bufsize=480)
         self.playing = True
 
@@ -143,7 +143,7 @@ class Musabot:
             self.current_track = None
 
     def send_msg(self, target, msg):
-        logging.debug(f"<musabot> -> <{target}> {msg}")
+        logging.debug(f"<musabot> -> <{target.name}> {msg}")
         self.mumble.users[target].send_message(msg)
 
     def send_msg_channel(self, msg, channel=None):
@@ -152,7 +152,7 @@ class Musabot:
                 channel = self.mumble.channels[self.mumble.users.myself['channel_id']]
             except KeyError:
                 channel = self.mumble.channels[0]
-        logging.debug(f"{channel} <musabot> {msg}")
+        logging.debug(f"{channel.name} <musabot> {msg}")
         channel.send_text_message(msg)
 
     def playnext(self):
@@ -532,6 +532,11 @@ class Musabot:
                 config['same_channel'] = value
             config.write()
             self.send_msg(text.actor, "Config value set")
+
+    def cmd_kill(self, text):
+        if is_admin(self.mumble.users[text.actor]) > 0:
+            self.stop()
+            self.exit = True
 
 
 if __name__ == '__main__':
