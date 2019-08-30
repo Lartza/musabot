@@ -145,7 +145,7 @@ class Musabot:
 
     def send_msg(self, target, msg):
         logging.debug(f"<musabot> -> <{target}> {msg}")
-        self.mumble.users[target].send_message(msg)
+        self.mumble.users[target].send_text_message(msg)
 
     def send_msg_channel(self, msg, channel=None):
         if not channel:
