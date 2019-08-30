@@ -3,6 +3,7 @@ import time
 import audioop
 import subprocess as sp
 import os
+import sys
 import logging
 from functools import partial
 from datetime import timedelta
@@ -537,6 +538,7 @@ class Musabot:
         if is_admin(self.mumble.users[text.actor]) > 0:
             self.stop()
             self.exit = True
+            sys.exit(0)
 
 
 if __name__ == '__main__':
