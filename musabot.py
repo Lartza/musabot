@@ -153,7 +153,7 @@ class Musabot:
                 channel = self.mumble.channels[self.mumble.users.myself['channel_id']]
             except KeyError:
                 channel = self.mumble.channels[0]
-        logging.debug(f"{channel.name} <musabot> {msg}")
+        logging.debug(f"{channel} <musabot> {msg}")
         channel.send_text_message(msg)
 
     def playnext(self):
