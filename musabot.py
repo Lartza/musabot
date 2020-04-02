@@ -12,7 +12,7 @@ from collections import deque
 
 from configobj import ConfigObj
 
-from peewee import Model, TextField, IntegrityError, DoesNotExist, fn
+from peewee import Model, TextField, IntegrityError, fn
 from playhouse.sqlite_ext import SqliteExtDatabase
 
 from googleapiclient.discovery import build
@@ -255,10 +255,10 @@ class Musabot:
                 self.processing.append(urlhash)
                 try:
                     db.connect()
-                    video_entry = Video.get(Video.id == urlhash)
+                    video_entry = Video.get_by_id(urlhash)
                     video = {'id': video_entry.id, 'url': video_entry.url, 'title': video_entry.title}
                     db.close()
-                except DoesNotExist:
+                except Video.DoesNotExist:
                     db.close()
                     if urlhash in config.as_list('blacklist'):
                         self.send_msg(text.actor, 'Video blacklisted')
@@ -305,10 +305,10 @@ class Musabot:
             self.processing.append(urlhash)
             try:
                 db.connect()
-                video_entry = Video.get(Video.id == urlhash)
+                video_entry = Video.get_by_id(urlhash)
                 video = {'id': video_entry.id, 'url': video_entry.url, 'title': video_entry.title}
                 db.close()
-            except DoesNotExist:
+            except Video.DoesNotExist:
                 db.close()
                 if urlhash in config.as_list('blacklist'):
                     self.send_msg(text.actor, 'Video blacklisted')
@@ -393,14 +393,14 @@ class Musabot:
                 if urlhash is None:
                     return
                 db.connect()
-                video = Video.get(Video.id == urlhash)
+                video = Video.get_by_id(urlhash)
             else:
                 if self.playing:
                     resume = True
                     db.connect()
                     logging.debug("Database connection opened")
                     logging.debug("Selecting currently playing track for deletion")
-                    video = Video.get(Video.id == self.current_track['id'])
+                    video = Video.get_by_id(self.current_track['id'])
                     self.stop()
                 else:
                     self.send_msg(text.actor, 'No video defined')
@@ -427,10 +427,10 @@ class Musabot:
                 if urlhash is None:
                     return
                 db.connect()
-                video = Video.get(Video.id == urlhash)
+                video = Video.get_by_id(urlhash)
             else:
                 if self.playing:
-                    video = Video.get(Video.id == self.current_track['id'])
+                    video = Video.get_by_id(self.current_track['id'])
                     self.playnext()
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
