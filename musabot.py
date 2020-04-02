@@ -119,7 +119,7 @@ class Musabot:
         self.playing = True
 
     def loop(self):
-        while not self.exit and self.mumble.isAlive():
+        while not self.exit and self.mumble.is_alive():
             if self.playing:
                 while self.mumble.sound_output.get_buffer_size() > 0.5 and self.playing:
                     time.sleep(0.01)
