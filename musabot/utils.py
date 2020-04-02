@@ -24,6 +24,9 @@ def get_yt_video_id(url):
 
     query = urlparse(url)
 
+    if query is None:
+        raise ValueError
+
     if 'youtube' in query.hostname:
         if query.path == '/watch':
             return parse_qs(query.query)['v'][0]
