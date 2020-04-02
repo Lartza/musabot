@@ -3,7 +3,6 @@ import time
 import audioop
 import subprocess as sp
 import os
-import sys
 import logging
 from functools import partial
 from datetime import timedelta
