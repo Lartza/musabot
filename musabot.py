@@ -31,7 +31,7 @@ config = ConfigObj('config.ini')
 loglevel = config['loglevel']
 numeric_level = getattr(logging, loglevel.upper(), None)
 if not isinstance(numeric_level, int):
-    raise ValueError('Invalid log level: %s' % loglevel)
+    raise ValueError(f'Invalid log level: {loglevel}')
 logging.basicConfig(level=numeric_level)
 
 filedir = config['filedir']
@@ -107,7 +107,7 @@ class Musabot:
 
     def launch_play_file(self, video):
         self.stop()
-        self.mumble.users.myself.comment(f"Now playing: {self.current_track['title']}")
+        self.mumble.users.myself.comment(f"Now playing:<br>{self.current_track['title']}<br><a href=\"{self.current_track['url']}\">{self.current_track['url']}</a>")
         file = os.path.join(filedir, video['id'])
         if 'starttime' in video:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-ss', str(video['starttime']), '-i', file,
@@ -198,7 +198,7 @@ class Musabot:
         elif hasattr(self, 'cmd_' + command):
             getattr(self, 'cmd_' + command)(text, parameter)
         else:
-            self.send_msg(text.actor, 'Command {} does not exist'.format(command))
+            self.send_msg(text.actor, f'Command {command} does not exist')
 
     def play_or_queue(self, video):
         if self.playing:
@@ -222,7 +222,7 @@ class Musabot:
         else:
             amount = 1
         if 1 <= amount <= 10:
-            self.send_msg(text.actor, 'Adding {} videos to the queue'.format(amount))
+            self.send_msg(text.actor, f'Adding {amount} videos to the queue')
             self.random(amount)
 
     def cmd_join(self, text, _):
@@ -242,7 +242,7 @@ class Musabot:
 
     def cmd_np(self, text, _):
         if self.playing:
-            self.send_msg(text.actor, 'np: {}'.format(self.current_track['title']))
+            self.send_msg(text.actor, f"<br>np: {self.current_track['title']}<br><a href=\"{self.current_track['url']}\">{self.current_track['url']}</a>")
         else:
             self.send_msg(text.actor, 'Stopped')
 
@@ -325,7 +325,7 @@ class Musabot:
 
     def cmd_queue(self, text, _):
         if self.queue:
-            self.send_msg(text.actor, '{} tracks in queue'.format(len(self.queue)))
+            self.send_msg(text.actor, f'{len(self.queue)} tracks in queue')
         else:
             self.send_msg(text.actor, 'No tracks in queue')
     cmd_numtracks = cmd_queue
@@ -336,10 +336,9 @@ class Musabot:
             self.volume = float(float(parameter) / 100)
             config['volume'] = self.volume
             config.write()
-            self.send_msg_channel('Vol: {}% by {}'.format(
-                int(self.volume * 100), self.mumble.users[text.actor]['name']))
+            self.send_msg_channel(f"Vol: {int(self.volume * 100)}% by {self.mumble.users[text.actor]['name']}")
         else:
-            self.send_msg(text.actor, 'Volume: {}%'.format(int(self.volume * 100)))
+            self.send_msg(text.actor, f'Volume: {int(self.volume * 100)}%')
 
     def download_youtube(self, text, url, urlhash, videoid):
         request = self.youtube.videos().list(part='snippet, contentDetails', id=videoid)
@@ -351,9 +350,9 @@ class Musabot:
         video = {'id': urlhash, 'url': url, 'title': response['items'][0]['snippet']['title']}
         try:
             sp.run(
-                'youtube-dl -f best --no-playlist -4 -o "{}/{}.%(ext)s" --extract-audio --audio-format mp3 --audio-quality 2 -- {}'
-                .format(filedir, video['id'], videoid), shell=True, check=True)
-            os.rename(os.path.join(filedir, '{}.mp3'.format(video['id'])),
+                f"youtube-dl -f best --no-playlist -4 -o \"{filedir}/{video['id']}.%(ext)s\" --extract-audio --audio-format mp3 --audio-quality 2 -- {videoid}",
+                shell=True, check=True)
+            os.rename(os.path.join(filedir, f"{video['id']}.mp3"),
                       os.path.join(filedir, video['id']))
         except sp.CalledProcessError:
             self.send_msg(text.actor, 'Error downloading video')
@@ -509,7 +508,7 @@ class Musabot:
                         ignored.append(user['hash'])
                     config['ignored'] = ignored
                     config.write()
-                    self.send_msg(text.actor, "{}({}) added to ignore list".format(user['name'], user['session']))
+                    self.send_msg(text.actor, f"{user['name']}({user['session']}) added to ignore list")
                     break
 
     def cmd_unignore(self, text, parameter):
@@ -521,7 +520,7 @@ class Musabot:
                     ignored.remove(user['hash'])
                     config['ignored'] = ignored
                     config.write()
-                    self.send_msg(text.actor, "{}({}) removed from ignore list".format(user['name'], user['session']))
+                    self.send_msg(text.actor, f"{user['name']}({user['session']}) removed from ignore list")
                     break
 
     def cmd_set(self, text, parameter):
