@@ -107,6 +107,7 @@ class Musabot:
 
     def launch_play_file(self, video):
         self.stop()
+        self.mumble.users.myself.comment(f"Now playing: {self.current_track['title']}")
         file = os.path.join(filedir, video['id'])
         if 'starttime' in video:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-ss', str(video['starttime']), '-i', file,
@@ -135,6 +136,7 @@ class Musabot:
         time.sleep(0.5)
 
     def stop(self):
+        self.mumble.users.myself.comment('Stopped')
         if self.thread:
             self.playing = False
             time.sleep(0.5)
