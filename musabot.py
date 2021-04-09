@@ -43,7 +43,7 @@ db = SqliteExtDatabase('musabot.db')
 
 
 class BaseModel(Model):
-    class Meta:
+    class Meta: # noqa
         database = db
 
 
@@ -60,12 +60,12 @@ db.close()
 
 def is_admin(user):
     if user['hash'] == config['owner']:
-        logging.info(f"{user['name']}({user['hash']}) authenticated as owner")
+        logging.info("%s(%s) authenticated as owner", user['name'], user['hash'])
         return 2
     if user['hash'] in config.as_list('admins'):
-        logging.info(f"{user['name']}({user['hash']}) authenticated as admin")
+        logging.info("%s(%s) authenticated as admin", user['name'], user['hash'])
         return 1
-    logging.info(f"Failed to authenticate {user['name']}({user['hash']})")
+    logging.info("Failed to authenticate %s(%s)", user['name'], user['hash'])
     return 0
 
 
@@ -100,14 +100,15 @@ class Musabot:
 
     def message_received(self, text):
         message = text.message.strip()
-        logging.debug(f"<{text.actor}> {message}")
+        logging.debug("<%s> %s", text.actor, message)
 
         if message.startswith('!'):
             self.handle_command(text, message)
 
     def launch_play_file(self, video):
         self.stop()
-        self.mumble.users.myself.comment(f"Now playing:<br>{self.current_track['title']}<br><a href=\"{self.current_track['url']}\">{self.current_track['url']}</a>")
+        self.mumble.users.myself.comment(f"Now playing:<br>{self.current_track['title']}<br>"
+                                         f"<a href=\"{self.current_track['url']}\">{self.current_track['url']}</a>")
         file = os.path.join(filedir, video['id'])
         if 'starttime' in video:
             command = ["ffmpeg", '-v', 'error', '-nostdin', '-ss', str(video['starttime']), '-i', file,
@@ -145,7 +146,7 @@ class Musabot:
             self.current_track = None
 
     def send_msg(self, target, msg):
-        logging.debug(f"<musabot> -> <{target}> {msg}")
+        logging.debug("<musabot> -> <%s> %s", target, msg)
         self.mumble.users[target].send_text_message(msg)
 
     def send_msg_channel(self, msg, channel=None):
@@ -154,7 +155,7 @@ class Musabot:
                 channel = self.mumble.channels[self.mumble.users.myself['channel_id']]
             except KeyError:
                 channel = self.mumble.channels[0]
-        logging.debug(f"{channel} <musabot> {msg}")
+        logging.debug("%s <musabot> %s", channel, msg)
         channel.send_text_message(msg)
 
     def playnext(self):
@@ -177,13 +178,13 @@ class Musabot:
             return
 
         if is_admin(self.mumble.users[text.actor]) == 0:
-            if config.as_bool('same_channel') and self.mumble.users.myself['channel_id'] != self.mumble.users[text.actor]['channel_id']:
+            if config.as_bool('same_channel') and self.mumble.users.myself['channel_id'] !=\
+                    self.mumble.users[text.actor]['channel_id']:
                 self.send_msg(text.actor, 'You need to be on the same channel!')
-                return
             elif config.as_bool('ignore_private') and text.session:
                 if text.session[0] == self.mumble.users.myself['session']:
                     self.send_msg(text.actor, "It's rude to whisper in a group")
-                    return
+            return
 
         try:
             command, parameter = message[1:].split(' ', 1)
@@ -242,7 +243,8 @@ class Musabot:
 
     def cmd_np(self, text, _):
         if self.playing:
-            self.send_msg(text.actor, f"<br>np: {self.current_track['title']}<br><a href=\"{self.current_track['url']}\">{self.current_track['url']}</a>")
+            self.send_msg(text.actor, f"<br>np: {self.current_track['title']}<br>"
+                                      f"<a href=\"{self.current_track['url']}\">{self.current_track['url']}</a>")
         else:
             self.send_msg(text.actor, 'Stopped')
 
@@ -350,7 +352,8 @@ class Musabot:
         video = {'id': urlhash, 'url': url, 'title': response['items'][0]['snippet']['title']}
         try:
             sp.run(
-                f"youtube-dl -f best --no-playlist -4 -o \"{filedir}/{video['id']}.%(ext)s\" --extract-audio --audio-format mp3 --audio-quality 2 -- {videoid}",
+                f"youtube-dl -f best --no-playlist -4 -o \"{filedir}/{video['id']}.%(ext)s\""
+                f" --extract-audio --audio-format mp3 --audio-quality 2 -- {videoid}",
                 shell=True, check=True)
             os.rename(os.path.join(filedir, f"{video['id']}.mp3"),
                       os.path.join(filedir, video['id']))
@@ -389,7 +392,7 @@ class Musabot:
             video = None
             resume = False
             if parameter is not None:
-                url, urlhash = utils.parse_parameter(parameter)
+                urlhash = utils.parse_parameter(parameter)[1]
                 if urlhash is None:
                     return
                 db.connect()
@@ -406,7 +409,7 @@ class Musabot:
                     self.send_msg(text.actor, 'No video defined')
             if video is not None:
                 os.remove(os.path.join(filedir, video.id))
-                logging.debug(f"Removed video file {video.id}")
+                logging.debug("Removed video file %s", video.id)
                 video.delete_instance()
                 logging.debug("Removed database entry for video")
                 db.close()
@@ -423,7 +426,7 @@ class Musabot:
         if is_admin(self.mumble.users[text.actor]) > 0:
             video = None
             if parameter is not None:
-                url, urlhash = utils.parse_parameter(parameter)
+                urlhash = utils.parse_parameter(parameter)[1]
                 if urlhash is None:
                     return
                 db.connect()
@@ -446,7 +449,7 @@ class Musabot:
 
     def cmd_unblacklist(self, text, parameter):
         if is_admin(self.mumble.users[text.actor]) > 0 and parameter:
-            url, urlhash = utils.parse_parameter(parameter)
+            urlhash = utils.parse_parameter(parameter)[1]
             blacklist = config.as_list('blacklist')
             if urlhash in blacklist:
                 blacklist.remove(urlhash)
@@ -534,7 +537,7 @@ class Musabot:
             config.write()
             self.send_msg(text.actor, "Config value set")
 
-    def cmd_kill(self, text, parameter):
+    def cmd_kill(self, text, _parameter):
         if is_admin(self.mumble.users[text.actor]) > 0:
             self.stop()
             self.exit = True
