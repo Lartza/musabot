@@ -19,7 +19,7 @@ from isodate import parse_duration
 
 import requests
 
-import pymumble.pymumble_py3 as pymumble
+import pymumble_py3 as pymumble
 
 from musabot import utils
 
