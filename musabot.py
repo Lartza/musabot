@@ -6,7 +6,6 @@ import os
 import logging
 from functools import partial
 from datetime import timedelta
-from urllib.parse import urlparse, parse_qs
 from collections import deque
 
 from configobj import ConfigObj
@@ -186,11 +185,7 @@ class Musabot:
                     self.send_msg(text.actor, "It's rude to whisper in a group")
             return
 
-        try:
-            command, parameter = message[1:].split(' ', 1)
-        except ValueError:
-            command = message[1:]
-            parameter = None
+        command, parameter = utils.parse_command(message)
 
         if command in ['yt', 'y']:
             self.cmd_youtube(text, parameter)
@@ -249,55 +244,48 @@ class Musabot:
             self.send_msg(text.actor, 'Stopped')
 
     def cmd_youtube(self, text, parameter):
-        if config['youtube_apikey'] is not None:
-            if parameter is not None:
-                url, urlhash = utils.parse_parameter(parameter)
-                if urlhash in self.processing:
-                    self.send_msg(text.actor, 'Already processing this video!')
-                    return
-                self.processing.append(urlhash)
-                try:
-                    db.connect()
-                    video_entry = Video.get_by_id(urlhash)
-                    video = {'id': video_entry.id, 'url': video_entry.url, 'title': video_entry.title}
-                    db.close()
-                except Video.DoesNotExist:
-                    db.close()
-                    if urlhash in config.as_list('blacklist'):
-                        self.send_msg(text.actor, 'Video blacklisted')
-                        self.processing.remove(urlhash)
-                        return
-                    try:
-                        videoid = utils.get_yt_video_id(url)
-                    except ValueError:
-                        self.send_msg(text.actor, 'Invalid YouTube link')
-                        self.processing.remove(urlhash)
-                        return
-                    video = self.download_youtube(text, url, urlhash, videoid)
-                    if video is None:
-                        return
-                try:
-                    timecode = parse_qs(urlparse(video['url']).query)['t'][0]
-                    video['starttime'] = 0
-                    if 'h' in timecode:
-                        hours, timecode = timecode.split('h', 1)
-                        video['starttime'] += int(hours) * 3600
-                    if 'm' in timecode:
-                        minutes, timecode = timecode.split('m', 1)
-                        video['starttime'] += int(minutes) * 60
-                    if 's' in timecode:
-                        seconds, timecode = timecode.split('s', 1)
-                        video['starttime'] += int(seconds)
-                    if timecode:
-                        video['starttime'] = int(timecode)
-                except KeyError:
-                    pass
-                self.processing.remove(video['id'])
-                self.play_or_queue(video)
-            else:
-                self.send_msg(text.actor, 'No video given')
-        else:
+        if config['youtube_apikey'] is None:
             self.send_msg(text.actor, 'YouTube API Key not set')
+            return
+
+        if parameter is None:
+            self.send_msg(text.actor, 'No video given')
+            return
+
+        url, urlhash = utils.parse_parameter(parameter)
+        if urlhash in self.processing:
+            self.send_msg(text.actor, 'Already processing this video!')
+            return
+        self.processing.append(urlhash)
+
+        if urlhash in config.as_list('blacklist'):
+            self.send_msg(text.actor, 'Video blacklisted')
+            self.processing.remove(urlhash)
+            return
+
+        try:
+            db.connect()
+            video_entry = Video.get_by_id(urlhash)
+            video = {'id': video_entry.id, 'url': video_entry.url, 'title': video_entry.title}
+            db.close()
+        except Video.DoesNotExist:
+            db.close()
+            try:
+                videoid = utils.get_yt_video_id(url)
+            except ValueError:
+                self.send_msg(text.actor, 'Invalid YouTube link')
+                self.processing.remove(urlhash)
+                return
+            video = self.download_youtube(text, url, urlhash, videoid)
+            if video is None:
+                return
+
+        starttime = utils.parse_timecode(video['url'])
+        if starttime:
+            video['starttime'] = starttime
+
+        self.processing.remove(video['id'])
+        self.play_or_queue(video)
 
     def cmd_mp3(self, text, parameter):
         if parameter is not None:
@@ -352,7 +340,7 @@ class Musabot:
         video = {'id': urlhash, 'url': url, 'title': response['items'][0]['snippet']['title']}
         try:
             sp.run(
-                f"youtube-dl -f best --no-playlist -4 -o \"{filedir}/{video['id']}.%(ext)s\""
+                f"yt-dlp -f b --no-playlist -4 -o \"{filedir}/{video['id']}.%(ext)s\""
                 f" --extract-audio --audio-format mp3 --audio-quality 2 -- {videoid}",
                 shell=True, check=True)
             os.rename(os.path.join(filedir, f"{video['id']}.mp3"),
@@ -366,7 +354,7 @@ class Musabot:
 
     def download_mp3(self, text, url, urlhash):
         video = {'id': urlhash, 'url': url, 'title': url.split('/')[-1]}
-        request = requests.get(video['url'], stream=True)
+        request = requests.get(video['url'], stream=True, timeout=60)
         with open(video['id'], 'wb') as file:
             for chunk in request.iter_content(chunk_size=1024):
                 if chunk:

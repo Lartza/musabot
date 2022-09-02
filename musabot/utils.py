@@ -48,3 +48,35 @@ def parse_parameter(parameter):
     urlhash = hashlib.sha256(url.encode('utf-8')).hexdigest()
 
     return url, urlhash
+
+
+def parse_command(message):
+    try:
+        command, parameter = message[1:].split(' ', 1)
+    except ValueError:
+        command = message[1:]
+        parameter = None
+    return command, parameter
+
+
+def parse_timecode(url):
+    starttime = None
+
+    try:
+        timecode = parse_qs(urlparse(url).query)['t'][0]
+        starttime = 0
+        if 'h' in timecode:
+            hours, timecode = timecode.split('h', 1)
+            starttime += int(hours) * 3600
+        if 'm' in timecode:
+            minutes, timecode = timecode.split('m', 1)
+            starttime += int(minutes) * 60
+        if 's' in timecode:
+            seconds, timecode = timecode.split('s', 1)
+            starttime += int(seconds)
+        if timecode:
+            starttime = int(timecode)
+    except KeyError:
+        pass
+
+    return starttime
